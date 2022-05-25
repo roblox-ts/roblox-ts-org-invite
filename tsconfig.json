@@ -1,25 +1,19 @@
 {
 	"compilerOptions": {
+		"declaration": true,
 		"module": "commonjs",
-		"target": "es2018",
-		"noImplicitAny": true,
-		"strictNullChecks": true,
+		"target": "ES2019",
+		"lib": ["ES2019"],
 		"strict": true,
-		"noUnusedLocals": true,
-		"moduleResolution": "node",
-		"sourceMap": true,
-		"outDir": "dist",
-		"resolveJsonModule": true,
+		"noFallthroughCasesInSwitch": true,
+		"strictNullChecks": true,
 		"esModuleInterop": true,
-		"allowSyntheticDefaultImports": true,
-		"lib": [
-			"es2015",
-			"es2017",
-			"es2018",
-			"esnext"
-		]
-	},
-	"include": [
-		"./src/**/*"
-	]
+		"removeComments": true,
+		"forceConsistentCasingInFileNames": true,
+		"composite": true,
+		"tsBuildInfoFile": "out/tsconfig.tsbuildinfo",
+		"sourceMap": true,
+		"rootDir": "src",
+		"outDir": "out"
+	}
 }
