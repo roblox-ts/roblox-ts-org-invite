@@ -47,6 +47,8 @@ const app = express();
 
 app.use(bodyParser.urlencoded({ extended: true }));
 
+app.get("/health", (_, res) => res.send("ok"));
+
 app.post("/invite-to-org", async (req, res) => {
 	const username = req.body.username;
 
