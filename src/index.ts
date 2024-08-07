@@ -1,55 +1,85 @@
-import { Request, Response } from 'express'
-import fetch from 'node-fetch'
-import org from 'libnpmorg'
-import team from 'libnpmteam'
-import { URLSearchParams } from 'url'
+import { $, type ShellError } from "bun";
+import assert from "node:assert";
+import express, { type Response } from "express";
+import bodyParser from "body-parser";
 
-require('dotenv').config()
+const CAPTCHA_VERIFY_URL = "https://www.google.com/recaptcha/api/siteverify";
 
-const CAPTCHA_VERIFY_URL = 'https://www.google.com/recaptcha/api/siteverify'
-const NPM_TOKEN = { token: process.env.NPM_TOKEN! }
-const BANNED_USERNAMES = process.env.BANNED_USERNAMES!.split(',')
+async function validateCaptcha(response: string) {
+	assert(Bun.env.CAPTCHA_SECRET, "CAPTCHA_SECRET is required");
 
-const badRequest = (response: Response, error: string) => (
-  response.status(400).send(`Bad request: ${error}`).end()
-)
+	const parsed = await fetch(CAPTCHA_VERIFY_URL, {
+		method: "POST",
+		body: new URLSearchParams({
+			secret: Bun.env.CAPTCHA_SECRET,
+			response,
+		}),
+	}).then(res => res.json());
 
-async function validateCaptcha (response: string) {
-  const form = new URLSearchParams()
-
-  form.append('secret', process.env.CAPTCHA_SECRET!)
-  form.append('response', response)
-
-  const captchaResponse = await fetch(CAPTCHA_VERIFY_URL, {
-    method: 'POST',
-    body: form
-  })
-
-  return (await captchaResponse.json()).success === true
+	assert(typeof parsed === "object" && parsed && "success" in parsed, "Invalid captcha response");
+	return parsed.success === true;
 }
 
-async function addUserToOrg (username: string) {
-  if (BANNED_USERNAMES.includes(username)) return false
+const INVITE_SENT_URL = `${Bun.env.SITE_URL}/invite-sent`;
+const SUCCESS_URL = `${Bun.env.SITE_URL}/success`;
+const FAIL_URL = `${Bun.env.SITE_URL}/fail`;
 
-  const profile = await org.set('rbxts', username, 'developer', NPM_TOKEN)
+const ALREADY_IN_ORG =
+	"409 Conflict - PUT https://registry.npmjs.org/-/org/rbxts/user - User/Email is already a part of organization";
+const ALREADY_SENT_INVITE =
+	"409 Conflict - PUT https://registry.npmjs.org/-/org/rbxts/user - User/Email already has a pending invite";
 
-  const teamName = `@rbxts:${profile.user}`
-  await team.create(teamName, NPM_TOKEN)
-  await team.add(profile.user, teamName, NPM_TOKEN)
+const success = (res: Response) => res.status(302).set("location", SUCCESS_URL).end();
 
-  return true
-}
+const inviteSent = (res: Response, username: string) => {
+	const url = new URL(INVITE_SENT_URL);
+	url.searchParams.set("username", username);
+	res.status(302).set("location", url.toString()).end();
+};
 
-export async function handleRequest (request: Request, response: Response) {
-  if (request.method !== 'POST') return badRequest(response, 'Wrong method')
+const badRequest = (res: Response, error: string) => {
+	const url = new URL(FAIL_URL);
+	url.searchParams.set("reason", error);
+	res.status(302).set("location", url.toString()).end();
+};
 
-  if (!request.body.username) return badRequest(response, 'Missing username')
+const app = express();
 
-  if (!await validateCaptcha(request.body['g-recaptcha-response'])) return badRequest(response, 'Bad captcha')
+app.use(bodyParser.urlencoded({ extended: true }));
 
-  if (await addUserToOrg(request.body.username)) {
-    return response.status(301).set('location', `${process.env.SITE_URL!}/success`).end()
-  }
+app.post("/invite-to-org", async (req, res) => {
+	const username = req.body.username;
 
-  response.status(302).set('location', `${process.env.SITE_URL!}/fail`).end()
-}
+	if (!username) return badRequest(res, "Missing username");
+
+	if (!(await validateCaptcha(req.body["g-recaptcha-response"]))) return badRequest(res, "Bad captcha");
+
+	try {
+		await $`npm org set rbxts ${username} developer --json`;
+		return inviteSent(res, username);
+	} catch (e) {
+		const shellError = e as ShellError;
+		const error = shellError.json().error.summary;
+		if (error === ALREADY_IN_ORG) return success(res);
+		if (error === ALREADY_SENT_INVITE) return inviteSent(res, username);
+		return badRequest(res, error);
+	}
+});
+
+app.post("/add-to-team", async (req, res) => {
+	const username = req.body.username;
+
+	if (!username) return badRequest(res, "Missing username");
+
+	if (!(await validateCaptcha(req.body["g-recaptcha-response"]))) return badRequest(res, "Bad captcha");
+
+	try {
+		await $`npm team create @rbxts:${username}`.nothrow();
+		await $`npm team add @rbxts:${username} ${username} --json`;
+		return success(res);
+	} catch {
+		return inviteSent(res, username);
+	}
+});
+
+app.listen(Bun.env.PORT);

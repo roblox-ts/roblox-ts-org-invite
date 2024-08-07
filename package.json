@@ -1,34 +1,25 @@
 {
-  "name": "roblox-ts-org-invite",
-  "version": "1.0.0",
-  "description": "",
-  "main": "dist/index.js",
-  "author": {
-    "name": "evaera",
-    "email": "e@eryn.io",
-    "homepage": "eryn.io"
-  },
-  "license": "MIT",
+  "name": "test-cli",
+  "module": "src/index.ts",
+  "type": "module",
   "scripts": {
-    "build": "tsc",
-    "deploy": "gcloud functions deploy org-invite --runtime nodejs10 --trigger-http --entry-point handleRequest",
-    "dev": "tsc-watch --onSuccess \"functions-framework --target handleRequest\""
+    "build": "bun build --compile --minify --sourcemap . --outfile ~/bin/$npm_package_name"
   },
   "devDependencies": {
-    "@types/express": "^4.17.0",
-    "@types/node": "^12.7.1",
-    "@types/node-fetch": "^2.5.0",
-    "ts-node": "^8.3.0",
-    "tsc-watch": "^2.4.0",
-    "tslint": "^5.18.0",
-    "tslint-config-standard": "^8.0.1",
-    "typescript": "^3.5.3"
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
   },
   "dependencies": {
-    "@google-cloud/functions-framework": "^1.2.1",
-    "dotenv": "^8.0.0",
-    "libnpmorg": "^1.0.1",
-    "libnpmteam": "^1.0.2",
-    "node-fetch": "^2.6.0"
+    "@biomejs/biome": "^1.8.3",
+    "@types/express": "^4.17.21",
+    "@types/npm-registry-fetch": "^8.0.7",
+    "body-parser": "^1.20.2",
+    "express": "^4.19.2",
+    "kleur": "^4.1.5",
+    "libnpmorg": "^6.0.6",
+    "npm-registry-fetch": "^17.1.0",
+    "zod": "^3.23.8"
   }
 }
