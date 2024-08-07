@@ -85,3 +85,6 @@ app.post("/add-to-team", async (req, res) => {
 });
 
 app.listen(Bun.env.PORT);
+
+await $`npm config set //registry.npmjs.org/:_authToken=${Bun.env.NPM_TOKEN}`;
+await $`npm whoami`;
