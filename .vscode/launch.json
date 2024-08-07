@@ -1,0 +1,14 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"type": "bun",
+			"request": "launch",
+			"name": "Debug Bun",
+			"program": "./src/index.ts",
+			"runtimeArgs": ["--inspect-brk"],
+			"args": [],
+			"cwd": "${workspaceFolder}"
+		}
+	]
+}
