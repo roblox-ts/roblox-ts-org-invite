@@ -39,6 +39,29 @@ function urlParams(url: string, params: { [K in string]: string }) {
 	return parsed.toString();
 }
 
+async function addToTeam(username: string) {
+	try {
+		await $`npm team create @rbxts:${username}`.nothrow();
+		await $`npm team add @rbxts:${username} ${username} --json`;
+		return redirect(SUCCESS_URL);
+	} catch {
+		return redirect(urlParams(INVITE_SENT_URL, { username }));
+	}
+}
+
+async function inviteToOrg(username: string) {
+	try {
+		await $`npm org set rbxts ${username} developer --json`;
+		return redirect(urlParams(INVITE_SENT_URL, { username }));
+	} catch (e) {
+		const shellError = e as ShellError;
+		const error = shellError.json().error.summary;
+		if (error === ALREADY_IN_ORG) return await addToTeam(username);
+		if (error === ALREADY_SENT_INVITE) return redirect(urlParams(INVITE_SENT_URL, { username }));
+		return redirect(urlParams(FAIL_URL, { reason: error }));
+	}
+}
+
 const app = new Elysia();
 
 app.get("/", () => "ok");
@@ -47,17 +70,7 @@ app.post(
 	"/invite-to-org",
 	async ({ body }) => {
 		if (!(await validateCaptcha(body))) return redirect(urlParams(FAIL_URL, { reason: "Bad captcha" }));
-		const { username } = body;
-		try {
-			await $`npm org set rbxts ${username} developer --json`;
-			return redirect(urlParams(INVITE_SENT_URL, { username }));
-		} catch (e) {
-			const shellError = e as ShellError;
-			const error = shellError.json().error.summary;
-			if (error === ALREADY_IN_ORG) return redirect(SUCCESS_URL);
-			if (error === ALREADY_SENT_INVITE) return redirect(urlParams(INVITE_SENT_URL, { username }));
-			return redirect(urlParams(FAIL_URL, { reason: error }));
-		}
+		return await inviteToOrg(body.username);
 	},
 	{
 		body: t.Object({
@@ -71,14 +84,7 @@ app.post(
 	"/add-to-team",
 	async ({ body }) => {
 		if (!(await validateCaptcha(body))) return redirect(urlParams(FAIL_URL, { reason: "Bad captcha" }));
-		const { username } = body;
-		try {
-			await $`npm team create @rbxts:${username}`.nothrow();
-			await $`npm team add @rbxts:${username} ${username} --json`;
-			return redirect(SUCCESS_URL);
-		} catch {
-			return redirect(urlParams(INVITE_SENT_URL, { username }));
-		}
+		return await addToTeam(body.username);
 	},
 	{
 		body: t.Object({
